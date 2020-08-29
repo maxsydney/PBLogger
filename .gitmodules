@@ -1,0 +1,6 @@
+[submodule "lib/args"]
+	path = lib/args
+	url = https://github.com/Taywee/args.git
+[submodule "lib/websocketpp"]
+	path = lib/websocketpp
+	url = https://github.com/zaphoyd/websocketpp.git
