@@ -4,8 +4,26 @@
 #include "args/args.hxx"
 #include "connection.h"
 
+#include <signal.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
+bool run;
+
+void my_handler(int s){
+    run = false;
+}
+
 int main(int argc, char* argv[])
 {
+    struct sigaction sigIntHandler;
+    sigIntHandler.sa_handler = my_handler;
+    sigemptyset(&sigIntHandler.sa_mask);
+    sigIntHandler.sa_flags = 0;
+    sigaction(SIGINT, &sigIntHandler, NULL);
+
+
     args::ArgumentParser parser("Pissbot data logger. Log distillation run over websockets");
     args::HelpFlag help(parser, "help", "Display the help menu", {'h', "help"});
     args::Positional<std::string> logPath(parser, "logPath", "Path to logger output file");
@@ -35,10 +53,12 @@ int main(int argc, char* argv[])
         std::cout << "> Created connection with id " << id << std::endl;
     }
 
-    while (endpoint.get_metadata(0)->isOpen() == false)
+    run = true;
+    while (run)
     {
 
     }
+
 
     ConnectionMetadata::ptr metadata = endpoint.get_metadata(0);
     if (metadata) {

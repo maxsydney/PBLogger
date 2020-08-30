@@ -17,12 +17,40 @@ void ConnectionMetadata::on_fail(Client* c, websocketpp::connection_hdl hdl)
     m_error_reason = con->get_ec().message();
 }
 
+void ConnectionMetadata::on_close(Client* c, websocketpp::connection_hdl hdl)
+{
+    m_status = "Closed";
+    Client::connection_ptr con = c->get_con_from_hdl(hdl);
+    std::stringstream s;
+    s << "close code: " << con->get_remote_close_code() << " (" 
+      << websocketpp::close::status::get_string(con->get_remote_close_code()) 
+      << "), close reason: " << con->get_remote_close_reason();
+    m_error_reason = s.str();
+}
+
+void ConnectionMetadata::on_message(websocketpp::connection_hdl hdl, Client::message_ptr msg) 
+{
+    printf("Got message\n");
+    if (msg->get_opcode() == websocketpp::frame::opcode::text) {
+        m_messages.push_back(msg->get_payload());
+    } else {
+        m_messages.push_back(websocketpp::utility::to_hex(msg->get_payload()));
+    }
+}
+
 std::ostream & operator<< (std::ostream & out, ConnectionMetadata const & data) 
 {
     out << "> URI: " << data.m_uri << "\n"
         << "> Status: " << data.m_status << "\n"
         << "> Remote Server: " << (data.m_server.empty() ? "None Specified" : data.m_server) << "\n"
         << "> Error/close reason: " << (data.m_error_reason.empty() ? "N/A" : data.m_error_reason);
+
+    out << "> Messages Processed: (" << data.m_messages.size() << ") \n";
+ 
+    // std::vector<std::string>::const_iterator it;
+    // for (it = data.m_messages.begin(); it != data.m_messages.end(); ++it) {
+    //     out << *it << "\n";
+    // }
  
     return out;
 }
@@ -37,6 +65,29 @@ WebsocketEndpoint::WebsocketEndpoint(void)
     m_endpoint.start_perpetual();
 
     m_thread.reset(new websocketpp::lib::thread(&Client::run, &m_endpoint));
+}
+
+WebsocketEndpoint::~WebsocketEndpoint(void) 
+{
+    m_endpoint.stop_perpetual();
+    
+    for (con_list::const_iterator it = m_connection_list.begin(); it != m_connection_list.end(); ++it) {
+        if (it->second->get_status() != "Open") {
+            // Only close open connections
+            continue;
+        }
+        
+        std::cout << "> Closing connection " << it->second->get_id() << std::endl;
+        
+        websocketpp::lib::error_code ec;
+        m_endpoint.close(it->second->get_hdl(), websocketpp::close::status::going_away, "", ec);
+        if (ec) {
+            std::cout << "> Error closing connection " << it->second->get_id() << ": "  
+                      << ec.message() << std::endl;
+        }
+    }
+    
+    m_thread->join();
 }
 
 int WebsocketEndpoint::connect(std::string const& uri) 
@@ -66,10 +117,57 @@ int WebsocketEndpoint::connect(std::string const& uri)
         &m_endpoint,
         websocketpp::lib::placeholders::_1
     ));
+    con->set_close_handler(websocketpp::lib::bind(
+        &ConnectionMetadata::on_close,
+        metadata_ptr,
+        &m_endpoint,
+        websocketpp::lib::placeholders::_1
+    ));
+    con->set_message_handler(websocketpp::lib::bind(
+        &ConnectionMetadata::on_message,
+        metadata_ptr,
+        websocketpp::lib::placeholders::_1,
+        websocketpp::lib::placeholders::_2
+    ));
 
     m_endpoint.connect(con);
 
     return new_id;
+}
+
+void WebsocketEndpoint::send(int id, std::string message) 
+{
+    websocketpp::lib::error_code ec;
+    
+    con_list::iterator metadata_it = m_connection_list.find(id);
+    if (metadata_it == m_connection_list.end()) {
+        std::cout << "> No connection found with id " << id << std::endl;
+        return;
+    }
+    
+    m_endpoint.send(metadata_it->second->get_hdl(), message, websocketpp::frame::opcode::text, ec);
+    if (ec) {
+        std::cout << "> Error sending message: " << ec.message() << std::endl;
+        return;
+    }
+    
+    metadata_it->second->record_sent_message(message);
+}
+
+void WebsocketEndpoint::close(int id, websocketpp::close::status::value code) 
+{
+    websocketpp::lib::error_code ec;
+    
+    con_list::iterator metadata_it = m_connection_list.find(id);
+    if (metadata_it == m_connection_list.end()) {
+        std::cout << "> No connection found with id " << id << std::endl;
+        return;
+    }
+    
+    m_endpoint.close(metadata_it->second->get_hdl(), code, "", ec);
+    if (ec) {
+        std::cout << "> Error initiating close: " << ec.message() << std::endl;
+    }
 }
 
 ConnectionMetadata::ptr WebsocketEndpoint::get_metadata(int id) const 

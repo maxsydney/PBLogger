@@ -19,8 +19,17 @@ class ConnectionMetadata {
     
         void on_open(Client* c, websocketpp::connection_hdl hdl);
         void on_fail(Client* c, websocketpp::connection_hdl hdl);
-        friend std::ostream & operator<< (std::ostream & out, ConnectionMetadata const & data);
+        void on_close(Client* c, websocketpp::connection_hdl hdl);
+        void on_message(websocketpp::connection_hdl hdl, Client::message_ptr msg);
+
+        friend std::ostream & operator<< (std::ostream & out, ConnectionMetadata const& data);
+
+        void record_sent_message(std::string message) { m_messages.push_back(">> " + message); }
+
         bool isOpen(void) const { return m_status == "Open"; }
+        websocketpp::connection_hdl get_hdl() const { return m_hdl; }
+        int get_id() const { return m_id; }
+        std::string get_status() const { return m_status; }
 
     private:
         int m_id;
@@ -29,13 +38,17 @@ class ConnectionMetadata {
         std::string m_uri;
         std::string m_server;
         std::string m_error_reason;
+        std::vector<std::string> m_messages;
 };
  
 class WebsocketEndpoint {
     public:
         WebsocketEndpoint(void);
+        ~WebsocketEndpoint(void); 
     
         int connect(std::string const & uri);
+        void send(int id, std::string message);
+        void close(int id, websocketpp::close::status::value code);
         ConnectionMetadata::ptr get_metadata(int id) const;
 
     private:
