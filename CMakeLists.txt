@@ -8,6 +8,11 @@ set (CMAKE_CXX_STANDARD 11)
 include_directories(
     lib
     lib/websocketpp
+    lib/json/include
+)
+
+add_subdirectory(
+    lib/json
 )
 
 # Add all sources
@@ -16,5 +21,7 @@ file(GLOB SOURCES "src/*.cpp")
 add_executable(PBLogger ${SOURCES})
 target_link_libraries(PBLogger 
     boost_system
+    boost_filesystem
     pthread
+    nlohmann_json::nlohmann_json
 )

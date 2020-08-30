@@ -30,12 +30,19 @@ void ConnectionMetadata::on_close(Client* c, websocketpp::connection_hdl hdl)
 
 void ConnectionMetadata::on_message(websocketpp::connection_hdl hdl, Client::message_ptr msg) 
 {
-    printf("Got message\n");
     if (msg->get_opcode() == websocketpp::frame::opcode::text) {
         m_messages.push_back(msg->get_payload());
     } else {
         m_messages.push_back(websocketpp::utility::to_hex(msg->get_payload()));
     }
+}
+
+std::vector<std::string> ConnectionMetadata::readMessageQueue(void)
+{
+    printf("Writing out %zu messages\n", m_messages.size());
+    std::vector<std::string> outMessages(m_messages);
+    m_messages.clear();
+    return outMessages;
 }
 
 std::ostream & operator<< (std::ostream & out, ConnectionMetadata const & data) 

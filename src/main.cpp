@@ -3,27 +3,10 @@
 #include <stdio.h>
 #include "args/args.hxx"
 #include "connection.h"
-
-#include <signal.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-
-bool run;
-
-void my_handler(int s){
-    run = false;
-}
+#include "logger.h"
 
 int main(int argc, char* argv[])
 {
-    struct sigaction sigIntHandler;
-    sigIntHandler.sa_handler = my_handler;
-    sigemptyset(&sigIntHandler.sa_mask);
-    sigIntHandler.sa_flags = 0;
-    sigaction(SIGINT, &sigIntHandler, NULL);
-
-
     args::ArgumentParser parser("Pissbot data logger. Log distillation run over websockets");
     args::HelpFlag help(parser, "help", "Display the help menu", {'h', "help"});
     args::Positional<std::string> logPath(parser, "logPath", "Path to logger output file");
@@ -44,34 +27,10 @@ int main(int argc, char* argv[])
         std::cerr << parser;
         return 1;
     }
+    
+    WsLogger logger(logPath.Get(), IP.Get(), LogType::Default);
+    logger.start();
 
-    // Hack
-    WebsocketEndpoint endpoint;
-    printf("Attempting to connect to: %s\n", args::get(IP).c_str());
-    int id = endpoint.connect(args::get(IP));
-    if (id != -1) {
-        std::cout << "> Created connection with id " << id << std::endl;
-    }
-
-    run = true;
-    while (run)
-    {
-
-    }
-
-
-    ConnectionMetadata::ptr metadata = endpoint.get_metadata(0);
-    if (metadata) {
-        std::cout << *metadata << std::endl;
-    } else {
-        std::cout << "> Unknown connection id " << id << std::endl;
-    }
-
-    // Establish a connection
-
-    // Initialise logger with connection
-
-    // Log until done
-
+    printf("Logging complete. Quitting\n");
     return 0;
 }
