@@ -30,6 +30,12 @@ void ConnectionMetadata::on_close(Client* c, websocketpp::connection_hdl hdl)
 
 void ConnectionMetadata::on_message(websocketpp::connection_hdl hdl, Client::message_ptr msg) 
 {
+    if (_connected == false)
+    {
+        // Record connection once we have received some data
+        _connected = true;
+    }
+
     if (msg->get_opcode() == websocketpp::frame::opcode::text) {
         m_messages.push_back(msg->get_payload());
     } else {
@@ -93,7 +99,7 @@ WebsocketEndpoint::~WebsocketEndpoint(void)
                       << ec.message() << std::endl;
         }
     }
-    
+    printf("Closing endpoint\n");
     m_thread->join();
 }
 

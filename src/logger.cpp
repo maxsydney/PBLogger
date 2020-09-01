@@ -65,7 +65,7 @@ WsLogger::WsLogger(const std::string& logPath, const std::string& url, LogType l
 
 WsLogger::~WsLogger(void)
 {
-    if (_configured)
+    if (_configured && _writeLogs)
     {
         // Write logs to file
         printf("Wrote logs to %s\n", _logPath.c_str());
@@ -98,8 +98,19 @@ void WsLogger::start(void)
 
     ConnectionMetadata::ptr metadata = _ws.get_metadata(_conID);
     run = true;
+    _writeLogs = true;
     while (run)
     {
+        if (metadata->isConnected() == false) 
+        {
+            double runTime = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - _connTime).count();
+            if (runTime > timeout_s)
+            {
+                printf("Unable to receive data from server. Quitting\n");
+                _writeLogs = false;
+                run = false;
+            }
+        }
         if (metadata->getNumMessages() >= 10)
         {
             std::vector<std::string> msgs = metadata->readMessageQueue();
@@ -155,7 +166,8 @@ LogRet WsLogger::_connectToServer(const std::string& url)
         return LogRet::Failure;
     }
 
-    printf("Got connection to server at: %s\n", url.c_str());
+    printf("Got connection to server %s at: %s\n", _ws.get_metadata(_conID)->get_serverName().c_str(), url.c_str());
+    _connTime = std::chrono::system_clock::now();
     return LogRet::Success;
 }
 
@@ -176,4 +188,6 @@ LogRet WsLogger::_setupDefaultLogging(void)
     _data["flowrate"] = std::vector<double>();
     _data["boilerConc"] = std::vector<double>();
     _data["vapourConc"] = std::vector<double>();
+
+    return LogRet::Success;
 }

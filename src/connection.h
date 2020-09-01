@@ -32,10 +32,13 @@ class ConnectionMetadata {
         size_t getNumMessages(void) const { return m_messages.size(); }
         websocketpp::connection_hdl get_hdl() const { return m_hdl; }
         int get_id() const { return m_id; }
-        std::string get_status() const { return m_status; }
+        std::string get_status(void) const { return m_status; }
+        std::string get_serverName(void) const { return m_server; }
+        bool isConnected(void) const { return _connected; }
 
     private:
         int m_id;
+        bool _connected = false;
         websocketpp::connection_hdl m_hdl;
         std::string m_status;
         std::string m_uri;
@@ -47,7 +50,6 @@ class ConnectionMetadata {
 class WebsocketEndpoint {
     public:
         WebsocketEndpoint(void);
-        WebsocketEndpoint(WebsocketEndpoint& other) = default;
         ~WebsocketEndpoint(void); 
     
         int connect(std::string const & uri);

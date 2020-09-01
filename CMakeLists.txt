@@ -2,6 +2,14 @@
 cmake_minimum_required(VERSION 2.8.9)
 project(PBLogger)
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set(MACOSX TRUE)
+endif()
+
+if (${MACOSX})
+    include_directories(/usr/local/include/)
+endif()
+
 set (CMAKE_CXX_STANDARD 11)
 
 # Include external libs

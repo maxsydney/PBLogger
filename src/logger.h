@@ -3,6 +3,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <chrono>
 #include <nlohmann/json.hpp>
 #include "connection.h"
 
@@ -20,7 +21,7 @@ class WsLogger
         void start(void);
 
     private:
-
+        static constexpr double timeout_s = 2.0;
         LogRet _setupDefaultLogging(void);
         LogRet _connectToServer(const std::string& url);
 
@@ -35,9 +36,11 @@ class WsLogger
         WebsocketEndpoint _ws;
         int _conID = 0;
 
+        std::chrono::time_point<std::chrono::system_clock> _connTime {};                // Time at initial connection
         bool _run = false;
         int _nRows = 0;
         bool _configured = false;
+        bool _writeLogs = false;
 
         // Map containing time series data
         std::unordered_map<std::string, std::vector<double>> _data;
